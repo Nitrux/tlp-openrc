@@ -1,3 +1,9 @@
+tlp-openrc (0.0.2)  nitrux; urgency=medium
+
+  * Removing bashsism from tlp-intel-mobile-openrc.
+
+ -- Uri Herrera <uri_herrera@nxos.org>  Sat, 25 Jan 2025 15:03:00 -0500
+
 tlp-openrc (0.0.1)  nitrux; urgency=medium
 
   * Create package.
