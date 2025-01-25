@@ -1,3 +1,9 @@
+tlp-openrc (0.0.4)  nitrux; urgency=medium
+
+  * Fix the entire tlp-intel-mobile-openrc service script to handle both pre-10th gen. processors and post 9th gen. processors, and non-Intel processors.
+
+ -- Uri Herrera <uri_herrera@nxos.org>  Sat, 25 Jan 2025 16:43:00 -0500
+
 tlp-openrc (0.0.3)  nitrux; urgency=medium
 
   * Fix the function cpu_model_check to actually output the correct processor model.

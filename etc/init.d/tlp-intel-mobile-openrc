@@ -8,9 +8,12 @@ depend() {
 }
 
 cpu_model_check() {
+    local model
     model=$(grep -m1 "model name" /proc/cpuinfo 2>/dev/null | sed -n 's/.*i[0-9]-\([0-9]\{3,5\}[A-Z]*\).*/\1/p')
 
-    if echo "$model" | grep -Eq '^[0-9]{3,5}[A-Z]?$'; then
+    if [ -z "$model" ]; then
+        echo "not_intel"
+    elif echo "$model" | grep -Eq '^[0-9]{3,5}[A-Z]?$'; then
         echo "$model"
     else
         echo "unknown"
@@ -18,50 +21,65 @@ cpu_model_check() {
 }
 
 cpu_generation_check() {
-    local model=$(cpu_model_check)
-    
+    local model generation
+    model=$(cpu_model_check)
+
     case "$model" in
+        not_intel)
+            echo "not_intel"
+            return 0
+            ;;
         unknown)
             echo "unknown"
+            return 1
             ;;
-        [0-9][0-9][0-9][A-Z]?)
-            echo "${model:0:1}" # Extract generation from 3-digit model (e.g., 9750H -> 9)
-            ;;
-        [0-9][0-9][0-9][0-9][A-Z]?)
-            echo "${model:0:2}" # Extract generation from 4-digit model (e.g., 13620H -> 13)
+        *H)
+            generation=${model%%[A-Z]*}
+            if [ ${#generation} -eq 4 ]; then
+                generation=$((generation / 1000))
+            elif [ ${#generation} -eq 5 ]; then
+                generation=$((generation / 1000))
+            fi
+            echo "$generation"
             ;;
         *)
-            echo "not_intel"
+            echo "not_mobile"
             ;;
     esac
 }
 
 modify_tlp_settings() {
     local tlp_file="/etc/tlp.d/99-nx-bat-settings.conf"
-    local generation=$(cpu_generation_check)
+    local generation
+    generation=$(cpu_generation_check)
 
-    case "$generation" in
-        unknown)
-            ewarn "Unable to determine CPU generation. No changes made to $tlp_file."
-            return 1
-            ;;
-        not_intel)
-            ewarn "Non-Intel processor detected. No changes made to $tlp_file."
-            return 0
-            ;;
-        1[1-9]|[2-9][0-9]) # 11th gen or newer
-            sed -i 's/^CPU_SCALING_GOVERNOR_ON_BAT=.*/CPU_SCALING_GOVERNOR_ON_BAT=userspace/' "$tlp_file"
-            einfo "Set scaling governor to 'userspace' for generation $generation mobile processors."
-            ;;
-        [6-9]) # 6th to 10th gen
-            sed -i 's/^CPU_SCALING_GOVERNOR_ON_BAT=.*/CPU_SCALING_GOVERNOR_ON_BAT=ondemand/' "$tlp_file"
-            einfo "Set scaling governor to 'ondemand' for generation $generation mobile processors."
-            ;;
-        *)
-            ewarn "Unrecognized CPU generation: $generation. No changes made to $tlp_file."
-            return 1
-            ;;
-    esac
+    if [ "$generation" = "not_intel" ]; then
+        ewarn "Non-Intel processor detected. No changes made to $tlp_file."
+        return 0
+    fi
+
+    if [ "$generation" = "not_mobile" ]; then
+        ewarn "Non-mobile Intel processor detected. No changes made to $tlp_file."
+        return 0
+    fi
+
+    if [ "$generation" = "unknown" ]; then
+        eerror "Unable to determine CPU generation. No changes made to $tlp_file."
+        return 1
+    fi
+
+    if [ ! -f "$tlp_file" ]; then
+        eerror "$tlp_file not found. Unable to apply changes."
+        return 1
+    fi
+
+    if [ "$generation" -ge 11 ]; then
+        sed -i 's/^CPU_SCALING_GOVERNOR_ON_BAT=.*/CPU_SCALING_GOVERNOR_ON_BAT=userspace/' "$tlp_file"
+        einfo "Set scaling governor to 'userspace' for generation $generation mobile processors."
+    else
+        sed -i 's/^CPU_SCALING_GOVERNOR_ON_BAT=.*/CPU_SCALING_GOVERNOR_ON_BAT=ondemand/' "$tlp_file"
+        einfo "Set scaling governor to 'ondemand' for generation $generation mobile processors."
+    fi
 }
 
 start() {
