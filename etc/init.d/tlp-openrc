@@ -1,0 +1,29 @@
+#!/sbin/openrc-run
+
+description="TLP power management tool"
+
+command="/usr/sbin/tlp"
+pidfile="/run/tlp.pid"
+
+depend() {
+    need mountall
+    after bootmisc
+}
+
+start() {
+    ebegin "Starting TLP"
+    "${command}" init start
+    eend $?
+}
+
+stop() {
+    ebegin "Stopping TLP"
+    "${command}" init stop
+    eend $?
+}
+
+status() {
+    ebegin "TLP status"
+    tlp-stat -s
+    eend 0
+}
