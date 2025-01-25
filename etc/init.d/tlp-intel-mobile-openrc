@@ -3,7 +3,7 @@
 description="Modify Nitrux TLP settings for mobile Intel processors based on processor generation"
 
 depend() {
-    need tlp-openrc
+    before tlp-openrc
     after bootmisc
 }
 

@@ -1,3 +1,9 @@
+tlp-openrc (0.0.5)  nitrux; urgency=medium
+
+  * Start tlp-intel-mobile-openrc before starting tlp-openrc.
+
+ -- Uri Herrera <uri_herrera@nxos.org>  Sat, 25 Jan 2025 17:30:00 -0500
+
 tlp-openrc (0.0.4)  nitrux; urgency=medium
 
   * Fix the entire tlp-intel-mobile-openrc service script to handle both pre-10th gen. processors and post 9th gen. processors, and non-Intel processors.
