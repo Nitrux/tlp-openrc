@@ -49,7 +49,7 @@ cpu_generation_check() {
 }
 
 modify_tlp_settings() {
-    local tlp_file="/etc/tlp.d/99-nx-bat-settings.conf"
+    local tlp_file="/etc/tlp.d/99-nx-tlp-bat-settings.conf"
     local generation
     generation=$(cpu_generation_check)
 
