@@ -9,25 +9,23 @@ depend() {
 
 cpu_model_check() {
     if grep -q "Intel" /proc/cpuinfo; then
-        local model
-        model=$(grep -oP 'model name\s+:.*\s(\d{4}[A-Z]{1,2})' /proc/cpuinfo | head -n 1 | awk '{print $NF}')
-        case "$model" in
-            [0-9][0-9][0-9][0-9][A-Z]*)
-                local generation=${model:0:2}
-                local suffix=${model:4}
-                case $suffix in
-                    H|HQ|HK|HF|Y|U|B)
-                        echo "$generation"
-                        ;;
-                    *)
-                        echo "not_mobile"
-                        ;;
-                esac
-                ;;
-            *)
-                echo "unknown"
-                ;;
-        esac
+        model=$(grep -m1 -o "model name.*" /proc/cpuinfo | sed -n 's/.*-\([0-9]\{4\}[A-Z]\{1,2\}\)/\1/p')
+
+        if echo "$model" | grep -Eq "^[0-9]{4}[A-Z]{1,2}$"; then
+            generation=$(echo "$model" | cut -c1-2)
+            suffix=$(echo "$model" | cut -c5-)
+
+            case "$suffix" in
+                H|HQ|HK|HF|Y|U|B)
+                    echo "$generation"
+                    ;;
+                *)
+                    echo "not_mobile"
+                    ;;
+            esac
+        else
+            echo "unknown"
+        fi
     else
         echo "not_intel"
     fi
