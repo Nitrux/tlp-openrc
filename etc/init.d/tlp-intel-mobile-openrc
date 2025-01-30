@@ -76,9 +76,13 @@ modify_tlp_settings() {
     if [ "$generation" -ge 11 ]; then
         sed -i 's/^CPU_SCALING_GOVERNOR_ON_BAT=.*/CPU_SCALING_GOVERNOR_ON_BAT=userspace/' "$tlp_file"
         einfo "Set scaling governor to 'userspace' for generation $generation mobile processors."
+        sed -i 's/^CPU_ENERGY_PERF_POLICY_ON_BAT=.*/CPU_ENERGY_PERF_POLICY_ON_BAT=balance_power/' "$tlp_file"
+        einfo "Set energy policy to 'balance_power' for generation $generation mobile processors."
     else
         sed -i 's/^CPU_SCALING_GOVERNOR_ON_BAT=.*/CPU_SCALING_GOVERNOR_ON_BAT=ondemand/' "$tlp_file"
         einfo "Set scaling governor to 'ondemand' for generation $generation mobile processors."
+        sed -i 's/^CPU_ENERGY_PERF_POLICY_ON_BAT=.*/CPU_ENERGY_PERF_POLICY_ON_BAT=power/' "$tlp_file"
+        einfo "Set energy policy to 'power' for generation $generation mobile processors."
     fi
 }
 
