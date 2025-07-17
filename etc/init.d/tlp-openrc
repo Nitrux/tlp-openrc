@@ -1,29 +1,106 @@
 #!/sbin/openrc-run
+# Copyright 2024 Uri Herrera <uri_herrera@nxos.org>
+# Distributed under the terms of the BSD-3-Clause license
 
-description="TLP power management tool"
-
+description="Applies and manages TLP power settings"
 command="/usr/sbin/tlp"
-pidfile="/run/tlp.pid"
 
 depend() {
-    need mountall
-    after bootmisc
+	# TLP is a system optimization that should be applied after
+	# most other services are already running.
+	after local
+}
+
+# --- Helper functions for Intel CPU detection ---
+
+_cpu_model_check() {
+	local model
+	model=$(grep -m1 "model name" /proc/cpuinfo 2>/dev/null | sed -n 's/.*i[0-9]-\([0-9]\{3,5\}[A-Z]*\).*/\1/p')
+
+	if [ -z "$model" ]; then
+		echo "not_intel"
+	elif echo "$model" | grep -Eq '^[0-9]{3,5}[A-Z]?$'; then
+		echo "$model"
+	else
+		echo "unknown"
+	fi
+}
+
+_cpu_generation_check() {
+	local model generation
+	model=$(_cpu_model_check)
+
+	case "$model" in
+		not_intel)
+			echo "not_intel"
+			return 0
+			;;
+		unknown)
+			echo "unknown"
+			return 1
+			;;
+		*H)
+			generation=${model%%[A-Z]*}
+			if [ ${#generation} -eq 4 ] || [ ${#generation} -eq 5 ]; then
+				generation=$((generation / 1000))
+			fi
+			echo "$generation"
+			;;
+		*)
+			echo "not_mobile"
+			;;
+	esac
+}
+
+_modify_tlp_settings() {
+	local tlp_file="/etc/tlp.d/99-nx-tlp-bat-settings.conf"
+	local generation
+	generation=$(_cpu_generation_check)
+
+	# Silently exit if no changes are needed or possible.
+	case "$generation" in
+		not_intel|not_mobile) return 0;;
+		unknown)
+			ewarn "Unable to determine CPU generation; no TLP changes made."
+			return 0
+		;;
+	esac
+
+	[ ! -f "$tlp_file" ] && return 0
+
+	einfo "Adjusting TLP settings for Intel CPU generation ${generation}"
+	if [ "$generation" -ge 11 ]; then
+		sed -i 's/^CPU_SCALING_GOVERNOR_ON_BAT=.*/CPU_SCALING_GOVERNOR_ON_BAT=userspace/' "$tlp_file"
+		sed -i 's/^CPU_ENERGY_PERF_POLICY_ON_BAT=.*/CPU_ENERGY_PERF_POLICY_ON_BAT=balance_power/' "$tlp_file"
+	else
+		sed -i 's/^CPU_SCALING_GOVERNOR_ON_BAT=.*/CPU_SCALING_GOVERNOR_ON_BAT=ondemand/' "$tlp_file"
+		sed -i 's/^CPU_ENERGY_PERF_POLICY_ON_BAT=.*/CPU_ENERGY_PERF_POLICY_ON_BAT=power/' "$tlp_file"
+	fi
+}
+
+# --- Main Service Functions ---
+
+start_pre() {
+	# This runs before start(), ensuring config is set before TLP is called.
+	_modify_tlp_settings
 }
 
 start() {
-    ebegin "Starting TLP"
-    "${command}" init start
-    eend $?
+	ebegin "Starting TLP power management"
+	# The 'tlp start' command applies settings based on the current power source.
+	"${command}" start
+	eend $?
 }
 
 stop() {
-    ebegin "Stopping TLP"
-    "${command}" init stop
-    eend $?
+	ebegin "Stopping TLP power management"
+	# Use the 'init stop' subcommand if your TLP version requires it.
+	"${command}" init stop
+	eend $?
 }
 
 status() {
-    ebegin "TLP status"
-    tlp-stat -s
-    eend 0
+	# Use the tlp-stat command to show the service status.
+	/usr/sbin/tlp-stat -s
+	return 0
 }
